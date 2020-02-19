@@ -1,24 +1,45 @@
-from .packet import Packet
-from typing import List
 import math
+from typing import List, Dict
+
+from .packet import Packet
 
 
 class Frame:
-    def __init__(self, data: str = ""):
-        self.data: str = data
+    def __init__(self, n_expected_packets: int):
+        self.n_expected_packets = n_expected_packets
+        self.size = 0
+        self.data_arr: List[bytes] = [None] * n_expected_packets
 
-    def to_data_arr(self, max_data_size: int) -> List[str]:
-        number_of_packets = math.ceil(len(self.data) / max_data_size)
-        print("Generating ", number_of_packets)
-        packet_data = [None] * number_of_packets
-        for i in range(0, number_of_packets):
-            if (i + 1) * max_data_size < len(self.data):
-                packet_data[i] = self.data[i * max_data_size: (i + 1) * max_data_size]
-            else:
-                packet_data[i] = self.data[i * max_data_size:]
-        return packet_data
+    def emplace(self, seq_no: int, data: bytes) -> bool:
+        """
+        :param seq_no: packet number in frame
+        :param data: data contained in packet
+        :return: true if data replaces None, false if position has already been filled
+        """
+        if seq_no >= self.n_expected_packets:
+            raise Exception("Packet # is greater than what was initially expected\nExpected Packets: {}\nPacket #: {}".format(
+                    self.n_expected_packets, seq_no))
+        if self.data_arr[seq_no] is None:
+            self.data_arr[seq_no] = data
+            self.size += 1
+            return True
+        return False
 
-    def to_dict(self):
+    def is_complete(self) -> bool:
+        """
+        :return: true if frame is filled, false otherwise
+        """
+        return self.size == self.n_expected_packets
+
+    def get_data_as_bytes(self) -> bytes:
+        return b"".join(x for x in self.data_arr)
+
+    def to_dict(self) -> Dict:
+        """
+        :return: dictionary of Frame
+        """
         return {
-            "data": self.data
+            "n_expected_packets": self.n_expected_packets,
+            "size": self.size,
+            "data": "".join(x for x in self.data_arr)
         }

@@ -14,23 +14,34 @@ if __name__ == "__main__":
         print(usage)
         exit(1)
 
-serverIP = sys.argv[1]
-serverPort = sys.argv[2]
+    serverIP = sys.argv[1]
+    serverPort = sys.argv[2]
 
-clientSocket = socket(AF_INET, SOCK_STREAM)
-clientSocket.connect((serverIP, int(serverPort)))
-frame_no = 0
-buffer = ""
-frame_to_save = open("./temp/frame_{}.jpeg".format(frame_no), "wb+")
-while True:
-    frame_no += 1
-    msg_from = clientSocket.recv(1024)
-    if len(msg_from) == 0:
-        break
-    t = struct.unpack("!IIII{}s".format(len(msg_from) - 4 * 4), msg_from)
-    p: Packet = Packet(t[0], t[1], t[2], t[3], t[4]) # Takes all except for the padding
-    frame_to_save.write(t[4])
-    if t[1] == t[2]:
-        break
-frame_to_save.close()
-clientSocket.close()
+    clientSocket = socket(AF_INET, SOCK_STREAM)
+    clientSocket.connect((serverIP, int(serverPort)))
+    frames = {}
+    buffer = ""
+    while True:
+        msg_from = clientSocket.recv(1024)
+        if len(msg_from) == 0:
+            break
+        t = struct.unpack("!IIII{}s".format(len(msg_from) - 4 * 4), msg_from)
+        p: Packet = Packet(t[0], t[1], t[2], t[3], t[4]) # Takes all except for the padding
+        # check if frame # of packet is in frames here
+        # frame_to_save.write(t[4])
+        if p.frame_no not in frames:
+            frames[p.frame_no] = Frame(p.total_seq_no)
+        try:
+            frames[p.frame_no].emplace(p.seq_no, p.data)
+        except Exception:
+            print("Error with frame no {}".format(p.frame_no))
+
+        # check if frame is filled
+        if frames[p.frame_no].is_complete():
+            frame_to_save = open("./temp/frame_{}.jpeg".format(p.frame_no), "wb+")
+            frame_to_save.write(frames[p.frame_no].get_data_as_bytes())
+            frame_to_save.close()
+            print("Frame {} written".format(p.frame_no))
+            del frames[p.frame_no] # delete frame now that it has been saved
+
+    clientSocket.close()

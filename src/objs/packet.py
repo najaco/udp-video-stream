@@ -17,9 +17,6 @@ class Packet:
         return struct.pack("!IIII{}s".format(self.size), self.frame_no, self.seq_no, self.total_seq_no, self.size,
                            self.data)
 
-    # {}x -> MAX_PKT_SIZE - self.size
-    # was removed
-
     def to_dict(self) -> Dict:
         return {
             "frame_no": self.frame_no,
