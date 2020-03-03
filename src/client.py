@@ -1,5 +1,6 @@
 import struct
 import sys
+import os
 from objs.frame import Frame
 from objs.packet import Packet
 from socket import *
@@ -21,6 +22,7 @@ if __name__ == "__main__":
     clientSocket.connect((serverIP, int(serverPort)))
     frames = {}
     buffer = ""
+    last_frame_no = 0
     while True:
         msg_from = clientSocket.recv(1024)
         if len(msg_from) == 0:
@@ -38,10 +40,16 @@ if __name__ == "__main__":
 
         # check if frame is filled
         if frames[p.frame_no].is_complete():
-            frame_to_save = open("./temp/frame_{}.jpeg".format(p.frame_no), "wb+")
-            frame_to_save.write(frames[p.frame_no].get_data_as_bytes())
-            frame_to_save.close()
-            print("Frame {} written".format(p.frame_no))
+            #frame_to_save = open("./temp/{}.h264".format(p.frame_no), "wb+")
+            #frame_to_save.write(frames[p.frame_no].get_data_as_bytes())
+            if p.frame_no > last_frame_no:
+                with os.fdopen(sys.stdout.fileno(), "wb", closefd=False) as stdout:
+                    stdout.write(frames[p.frame_no].get_data_as_bytes())
+                    stdout.flush()
+                last_frame_no = p.frame_no
+            #frame_to_save.close()
+            #lprint("Frame {} written".format(p.frame_no))
+            #print(frames[p.frame_no].get_data_as_bytes())
             del frames[p.frame_no] # delete frame now that it has been saved
 
     clientSocket.close()

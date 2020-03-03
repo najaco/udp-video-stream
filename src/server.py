@@ -36,7 +36,7 @@ def server_handler(con_socket, ad):
     total_frames = 626
     while frame_no < total_frames:  # 1 for now, change to frames later
         frame_no += 1
-        f = open("./assets/road480p/road_{}.jpeg".format(frame_no), "rb")
+        f = open("./assets/road480p/{}.h264".format(frame_no), "rb")
         frame = f.read()
         data_arr: List[str] = to_data_arr(frame, MAX_DATA_SIZE)
         packets: List[Packet] = create_packets(frame_no, data_arr)

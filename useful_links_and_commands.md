@@ -9,3 +9,4 @@
 # Commands
 * `vlc --demux=rawvideo --rawvid-fps=25 --ra=wvid-width=640 --rawvid-height=480 --rawvid-chroma=RV24 - --sout "#display"`
     * Pipe output of video reader inot this?
+* cat road480p/{1..626}.h264 | vlc --demux h264 -
