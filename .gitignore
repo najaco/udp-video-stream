@@ -203,3 +203,6 @@ dmypy.json
 
 # End of https://www.gitignore.io/api/python,pycharm
 *.h264
+
+# Ignore log files
+*.log
