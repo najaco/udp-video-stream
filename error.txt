@@ -1,0 +1,4 @@
+Traceback (most recent call last):
+  File "src/client.py", line 56, in <module>
+    with os.fdopen(sys.syserr.fileno(), "wb", closefd=False) as stderr:
+AttributeError: module 'sys' has no attribute 'syserr'
