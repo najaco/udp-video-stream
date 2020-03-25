@@ -25,8 +25,3 @@ class Packet:
             "size": self.size,
             "data": self.data
         }
-    # @staticmethod
-    # def unpack(bytes: str) -> Packet:
-    #     tuple = struct.unpack("IIIIs")
-    #
-    #     return Packet(tuple[0], tup, 0, 0, "")
