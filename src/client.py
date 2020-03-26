@@ -95,5 +95,4 @@ if __name__ == "__main__":
         print(usage)
         exit(1)
     logging.basicConfig(filename='client.log', level=logging.INFO)
-
     main()

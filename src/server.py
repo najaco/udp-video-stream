@@ -1,11 +1,12 @@
+import logging
 import math
+import os
 import sys
 import threading
 import time
-import os
 from objs.frame import Frame
-from objs.packet import Packet
 from objs.metadata import Metadata
+from objs.packet import Packet
 from socket import *
 from typing import List
 
@@ -36,6 +37,7 @@ def to_data_arr(data: str, max_data_size: int) -> List[str]:
 
 
 def server_handler(con_socket, ad, path_to_frames, starting_frame, total_frames):
+    logging.info("Handler Started")
     frame_no = starting_frame
     meta_data = Metadata(file_name=path_to_frames, number_of_frames=total_frames)
     con_socket.send(meta_data.pack())
@@ -50,9 +52,9 @@ def server_handler(con_socket, ad, path_to_frames, starting_frame, total_frames)
             data = p.pack()
             con_socket.send(data)
         time.sleep(SLEEP_TIME)  # sleep
-        print("Sent Frame #: {}".format(frame_no))
+        logging.info("Sent Frame #: {}".format(frame_no))
     con_socket.close()
-    print("Finished")
+    logging.info("Handler Finished")
 
 
 usage = "usage: python " + sys.argv[0] + " [portno]"
@@ -76,4 +78,5 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print(usage)
         exit(1)
+    logging.basicConfig(filename='server.log', level=logging.INFO)
     main()
