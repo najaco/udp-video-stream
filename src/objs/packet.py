@@ -1,5 +1,5 @@
-from typing import List, Dict
 import struct
+from typing import Dict
 
 MAX_PKT_SIZE = 1024
 MAX_DATA_SIZE = MAX_PKT_SIZE - 4 * 4
@@ -25,3 +25,8 @@ class Packet:
             "size": self.size,
             "data": self.data
         }
+
+    @staticmethod
+    def unpack(msg):
+        t = struct.unpack("!IIII{}s".format(len(msg) - 4 * 4), msg)
+        Packet(t[0], t[1], t[2], t[3], t[4])  # Takes all except for the padding

@@ -4,7 +4,7 @@ import struct
 import sys
 import threading
 import time
-from objs.frame import Frame
+from objs.frame_builder import FrameBuilder
 from objs.packet import Packet
 from objs.metadata import Metadata
 from os import path
@@ -29,7 +29,7 @@ def main():
     logging.info(meta_data.to_dict())
 
     writer_thread = threading.Thread(target=writer, args=(client_socket, meta_data))
-    reader_thread = threading.Thread(target=reader, args=(meta_data, ))
+    reader_thread = threading.Thread(target=reader, args=(meta_data,))
     writer_thread.start()
     reader_thread.start()
 
@@ -48,13 +48,12 @@ def writer(client_socket, meta_data: Metadata):
         msg_from = client_socket.recv(1024)
         if len(msg_from) == 0:
             break
-        t = struct.unpack("!IIII{}s".format(len(msg_from) - 4 * 4), msg_from)
-        p: Packet = Packet(t[0], t[1], t[2], t[3], t[4])  # Takes all except for the padding
+        p: Packet = Packet.unpack(msg_from)
 
         # check if frame # of packet is in frames here
 
         if p.frame_no not in frames:
-            frames[p.frame_no] = Frame(p.total_seq_no)
+            frames[p.frame_no] = FrameBuilder(p.total_seq_no)
         try:
             frames[p.frame_no].emplace(p.seq_no, p.data)
         except Exception:
@@ -89,6 +88,7 @@ def reader(meta_data: Metadata):
         os.remove("{}{}.h264".format(PATH_TO_CACHE, frame_no))
         frame_no += 1
     logging.info("Reader Finished")
+
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:

@@ -4,9 +4,11 @@ import os
 import sys
 import threading
 import time
+
 from objs.frame import Frame
 from objs.metadata import Metadata
 from objs.packet import Packet
+
 from socket import *
 from typing import List
 
@@ -25,7 +27,8 @@ def create_packets(frame_no: int, data_arr: List[str]) -> List[Packet]:
     return packets
 
 
-def to_data_arr(data: str, max_data_size: int) -> List[str]:
+def to_data_arr(frame: Frame, max_data_size: int) -> List[str]:
+    data = frame.data
     number_of_packets = math.ceil(len(data) / max_data_size)
     packet_data = [None] * number_of_packets
     for i in range(0, number_of_packets):
@@ -35,17 +38,25 @@ def to_data_arr(data: str, max_data_size: int) -> List[str]:
             packet_data[i] = data[i * max_data_size:]
     return packet_data
 
+## TODO: write another thread to listen for ACKS
 
 def server_handler(con_socket, ad, path_to_frames, starting_frame, total_frames):
     logging.info("Handler Started")
     frame_no = starting_frame
     meta_data = Metadata(file_name=path_to_frames, number_of_frames=total_frames)
+    frames = {}
+    critical_frames_ack_received = {}
     con_socket.send(meta_data.pack())
     time.sleep(SLEEP_TIME)
     while frame_no < total_frames:  # 1 for now, change to frames later
         frame_no += 1
         f = open("{}{}.h264".format(path_to_frames, frame_no), "rb")
-        frame = f.read()
+
+        frame = Frame(f.read())
+        frames[frame_no] = frame
+        if frame.priority == Frame.Priority.CRITICAL:
+            critical_frames_ack_received[frame_no] = False
+
         data_arr: List[str] = to_data_arr(frame, MAX_DATA_SIZE)
         packets: List[Packet] = create_packets(frame_no, data_arr)
         for p in packets:
