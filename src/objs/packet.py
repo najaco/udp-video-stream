@@ -29,4 +29,4 @@ class Packet:
     @staticmethod
     def unpack(msg):
         t = struct.unpack("!IIII{}s".format(len(msg) - 4 * 4), msg)
-        Packet(t[0], t[1], t[2], t[3], t[4])  # Takes all except for the padding
+        return Packet(t[0], t[1], t[2], t[3], t[4])  # Takes all except for the padding

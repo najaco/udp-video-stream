@@ -1,5 +1,3 @@
-from .frame_priority import FramePriority
-
 from enum import Enum
 
 BYTE_LOC = 4
