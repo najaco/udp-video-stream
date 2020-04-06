@@ -38,6 +38,7 @@ def to_data_arr(frame: Frame, max_data_size: int) -> List[str]:
             packet_data[i] = data[i * max_data_size:]
     return packet_data
 
+
 ## TODO: write another thread to listen for ACKS
 
 def server_handler(con_socket, ad, path_to_frames, starting_frame, total_frames):
@@ -54,7 +55,7 @@ def server_handler(con_socket, ad, path_to_frames, starting_frame, total_frames)
 
         frame = Frame(f.read())
         frames[frame_no] = frame
-        if frame.priority == Frame.Priority.CRITICAL:
+        if frame.priority >= Frame.Priority.CRITICAL:
             critical_frames_ack_received[frame_no] = False
 
         data_arr: List[str] = to_data_arr(frame, MAX_DATA_SIZE)
