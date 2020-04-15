@@ -1,6 +1,7 @@
 import math
 from typing import List, Dict
 
+from . import Frame
 from .packet import Packet
 
 
@@ -33,6 +34,9 @@ class FrameBuilder:
 
     def get_data_as_bytes(self) -> bytes:
         return b"".join(x for x in self.data_arr)
+
+    def to_frame(self):
+        return Frame(self.get_data_as_bytes())
 
     def to_dict(self) -> Dict:
         """
