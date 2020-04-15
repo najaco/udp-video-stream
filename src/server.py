@@ -60,10 +60,11 @@ def server_handler(con_socket, ad, path_to_frames, starting_frame, total_frames)
     frame_retr_times: DeltaList[int] = DeltaList()
 
     def reader() -> None:
+        logging.info("Reader Started")
         while True:
             msg_from = con_socket.recv(1024)
             if len(msg_from) == 0:
-                continue
+                break
             a: Ack = Ack.unpack(msg_from)
             critical_frame_acks[a.frame_no] = True
             # remove frame from dlist here
@@ -71,9 +72,9 @@ def server_handler(con_socket, ad, path_to_frames, starting_frame, total_frames)
             logging.info("ACK {}".format(a.frame_no))
         logging.info("Reader Finished")
 
-    def retransmitter() -> None:
-        logging.info("Reader Started")
-        while True:
+    def retransmitter(reader_thread) -> None:
+        logging.info("Retransmitter Started")
+        while reader_thread.is_alive():
             frame_retr_times.decrement_key()
             ready_frames: List[int] = frame_retr_times.remove_all_ready()
             for i in ready_frames:
@@ -90,7 +91,7 @@ def server_handler(con_socket, ad, path_to_frames, starting_frame, total_frames)
         logging.info("Retransmitter Finished")
 
     reader_thread = threading.Thread(target=reader, args=())
-    retransmitter_thread = threading.Thread(target=retransmitter, args=())
+    retransmitter_thread = threading.Thread(target=retransmitter, args=(reader_thread,))
     reader_thread.start()
     retransmitter_thread.start()
 
@@ -115,10 +116,11 @@ def server_handler(con_socket, ad, path_to_frames, starting_frame, total_frames)
 
         time.sleep(SLEEP_TIME)  # sleep
         logging.info("Sent Frame #: {}".format(frame_no))
-    con_socket.close()
-    logging.info("Handler Finished")
     reader_thread.join()
     retransmitter_thread.join()
+    con_socket.close()
+    logging.info("Handler Finished")
+
 
 
 usage = "usage: python " + sys.argv[0] + " [portno]"
