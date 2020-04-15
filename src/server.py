@@ -66,6 +66,8 @@ def server_handler(con_socket, ad, path_to_frames, starting_frame, total_frames)
                 continue
             a: Ack = Ack.unpack(msg_from)
             critical_frame_acks[a.frame_no] = True
+            # remove frame from dlist here
+            frame_retr_times.remove(a.frame_no)
             logging.info("ACK {}".format(a.frame_no))
         logging.info("Reader Finished")
 

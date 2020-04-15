@@ -46,7 +46,7 @@ class DeltaList(Generic[E]):
             self.__nodes[e].next = p
 
     def decrement_key(self, delta: int = 1) -> None:
-        if self.size > 0:
+        if self.__size > 0:
             self.__head.key -= delta
             self.__cumulative_key -= delta
 
@@ -54,8 +54,11 @@ class DeltaList(Generic[E]):
         if e not in self.__nodes:
             raise Exception(str(e), " does not exist.")
         if self.__nodes[e] == self.__head:
+            if self.__head.next is not None:
+                self.__nodes[e].next.key += self.__head.key  # update key of next node
             self.__head = self.__nodes[e].next
-            self.__nodes[e].next.key += self.__head.key  # update key of next node
+        elif self.__nodes[e] == self.__tail:
+            self.remove_last()
         else:
             self.__nodes[e].prev.next = self.__nodes[e].next
             self.__nodes[e].next.prev = self.__nodes[e].prev
@@ -66,12 +69,12 @@ class DeltaList(Generic[E]):
 
     def remove_all_ready(self) -> List[E]:
         ready_list: List[E] = []
-        while self.size > 0 and self.__head.key <= 0:
+        while self.__size > 0 and self.__head.key <= 0:
             ready_list.append(self.remove_first())
         return ready_list
 
     def remove_first(self) -> E:
-        if self.size == 0:
+        if self.__size == 0:
             return None
 
         data = self.__head.data
@@ -84,6 +87,21 @@ class DeltaList(Generic[E]):
         self.__size -= 1
         del self.__nodes[data]
         return data
+
+    def remove_last(self) -> E:
+        if self.__size == 0:
+            return None
+        n: Node[E] = self.__tail.data
+        if self.__size == 1:
+            self.__head = None
+            self.__tail = None
+            self.__cumulative_key -= n.key
+        else:
+            self.__tail.prev = self.__tail.next
+            self.__cumulative_key = 0
+        self.__size -= 1
+        del self.__nodes[n.data]
+        return n.data
 
     def __insert_first(self, k: int, e: E) -> None:
         self.__nodes[e] = Node[E](key=k, data=e)
