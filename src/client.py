@@ -18,25 +18,7 @@ MAX_PKT_SIZE = 1024
 MAX_DATA_SIZE = MAX_PKT_SIZE - 4 * 4
 
 PATH_TO_CACHE = "./temp/"
-
-usage = "usage: python " + sys.argv[0] + " [serverIP] " + " [serverPort]"
-
-
-def main():
-    server_ip, server_port = sys.argv[1], sys.argv[2]
-    client_socket = socket(AF_INET, SOCK_STREAM)
-    client_socket.connect((server_ip, int(server_port)))
-    meta_data_msg = client_socket.recv(1024)
-    meta_data: Metadata = Metadata.unpack(meta_data_msg)
-    logging.info(meta_data.to_dict())
-    writer_thread = threading.Thread(target=writer, args=(client_socket, meta_data))
-    reader_thread = threading.Thread(target=reader, args=(meta_data,))
-    writer_thread.start()
-    reader_thread.start()
-
-    writer_thread.join()
-    reader_thread.join()
-    logging.info("Finished")
+PRIORITY_THRESHOLD = Frame.Priority.IMPORTANT
 
 
 def writer(client_socket, meta_data: Metadata):
@@ -64,7 +46,7 @@ def writer(client_socket, meta_data: Metadata):
             frame_to_save = open("./temp/{}.h264".format(p.frame_no), "wb+")
             frame_to_save.write(frames[p.frame_no].get_data_as_bytes())
             frame_to_save.close()
-            if frames[p.frame_no].to_frame().priority == Frame.Priority.CRITICAL:
+            if frames[p.frame_no].to_frame().priority >= PRIORITY_THRESHOLD:
                 client_socket.send(Ack(p.frame_no).pack())
                 logging.info("ACK {} Sent".format(p.frame_no))
             del frames[p.frame_no]  # delete frame now that it has been saved
@@ -91,6 +73,26 @@ def reader(meta_data: Metadata):
         os.remove("{}{}.h264".format(PATH_TO_CACHE, frame_no))
         frame_no += 1
     logging.info("Reader Finished")
+
+
+usage = "usage: python " + sys.argv[0] + " [serverIP] " + " [serverPort]"
+
+
+def main():
+    server_ip, server_port = sys.argv[1], sys.argv[2]
+    client_socket = socket(AF_INET, SOCK_STREAM)
+    client_socket.connect((server_ip, int(server_port)))
+    meta_data_msg = client_socket.recv(1024)
+    meta_data: Metadata = Metadata.unpack(meta_data_msg)
+    logging.info(meta_data.to_dict())
+    writer_thread = threading.Thread(target=writer, args=(client_socket, meta_data))
+    reader_thread = threading.Thread(target=reader, args=(meta_data,))
+    writer_thread.start()
+    reader_thread.start()
+
+    writer_thread.join()
+    reader_thread.join()
+    logging.info("Finished")
 
 
 if __name__ == "__main__":

@@ -20,6 +20,7 @@ SLEEP_TIME = .016  # equivalent to 60 fps
 PATH_TO_FRAMES = "./assets/road480p/"
 RETR_TIME = 5
 RETR_INTERVAL = 1
+PRIORITY_THRESHOLD = Frame.Priority.IMPORTANT
 
 
 def create_packets(frame_no: int, data_arr: List[str]) -> List[Packet]:
@@ -41,14 +42,6 @@ def to_data_arr(frame: Frame, max_data_size: int) -> List[str]:
         else:
             packet_data[i] = data[i * max_data_size:]
     return packet_data
-
-
-# def send_frame(frame: Frame, frame_no: int, con_socket):
-#     data_arr: List[str] = to_data_arr(frame, MAX_DATA_SIZE)
-#     packets: List[Packet] = create_packets(frame_no, data_arr)
-#     for p in packets:
-#         data = p.pack()
-#         con_socket.send(data)
 
 
 def server_handler(con_socket, ad, path_to_frames, starting_frame, total_frames):
@@ -103,7 +96,7 @@ def server_handler(con_socket, ad, path_to_frames, starting_frame, total_frames)
 
         frame = Frame(f.read())
         frames[frame_no] = frame
-        if frame.priority >= Frame.Priority.CRITICAL:  # add support for >= later
+        if frame.priority >= PRIORITY_THRESHOLD:  # add support for >= later
             critical_frame_acks[frame_no] = False
             frame_retr_times.insert(k=RETR_TIME, e=frame_no)
 
