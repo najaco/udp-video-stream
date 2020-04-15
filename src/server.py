@@ -103,7 +103,7 @@ def server_handler(con_socket, ad, path_to_frames, starting_frame, total_frames)
 
         frame = Frame(f.read())
         frames[frame_no] = frame
-        if frame.priority == Frame.Priority.CRITICAL: # add support for >= later
+        if frame.priority >= Frame.Priority.CRITICAL:  # add support for >= later
             critical_frame_acks[frame_no] = False
             frame_retr_times.insert(k=RETR_TIME, e=frame_no)
 
@@ -122,7 +122,6 @@ def server_handler(con_socket, ad, path_to_frames, starting_frame, total_frames)
     logging.info("Handler Finished")
 
 
-
 usage = "usage: python " + sys.argv[0] + " [portno]"
 
 
@@ -133,7 +132,7 @@ def main():
     server_socket.bind(('', int(server_port)))
     server_socket.listen(8)
     path = "./assets/road480p/"
-    number_of_frames = len(os.listdir(path)) - 1 # - 1 needed?
+    number_of_frames = len(os.listdir(path)) - 1  # - 1 needed?
     while True:
         connection_socket, addr = server_socket.accept()
         threading.Thread(target=server_handler, args=(connection_socket, addr, path, 0, number_of_frames)).start()
