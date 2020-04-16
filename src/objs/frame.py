@@ -7,7 +7,7 @@ BYTE_LOC = 4
 
 
 class Frame:
-    def __init__(self, data: str, frame_no: int = 0):
+    def __init__(self, data: bytes, frame_no: int = 0):
         self.data = data
         self.frame_no = frame_no
 

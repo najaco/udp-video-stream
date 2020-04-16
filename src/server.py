@@ -63,12 +63,9 @@ def server_handler(con_socket, ad, path_to_frames, starting_frame, total_frames)
             ready_frames: List[int] = frame_retr_times.remove_all_ready()
             for i in ready_frames:
                 logging.info("Retransmitting frame {}".format(i))
-                # change to method later
-                pkts: List[Packet] = create_packets(frames[i])
-                for pa in pkts:
-                    dt = p.pack()
-                    if pa in critical_frame_acks and critical_frame_acks[pa] is False:
-                        con_socket.send(dt)
+                if i in critical_frame_acks and critical_frame_acks[i] is False:
+                    for packet in create_packets(frames[i]):
+                        con_socket.send(packet.pack())
 
             time.sleep(RETR_INTERVAL)
         logging.info("Retransmitter Finished")
