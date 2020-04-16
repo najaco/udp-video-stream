@@ -1,12 +1,15 @@
+import math
 from enum import Enum
 from functools import total_ordering
+from typing import List
 
 BYTE_LOC = 4
 
 
 class Frame:
-    def __init__(self, data: str):
+    def __init__(self, data: str, frame_no: int = 0):
         self.data = data
+        self.frame_no = frame_no
 
     class Priority(Enum):
         LOW = 0b000
@@ -38,3 +41,13 @@ class Frame:
     def priority(self) -> Priority:
         priority_byte = self.data[BYTE_LOC] >> 5
         return self.Priority(priority_byte)
+
+    def to_data_arr(self, max_data_size: int) -> List[str]:
+        number_of_packets = math.ceil(len(self.data) / max_data_size)
+        packet_data = [None] * number_of_packets
+        for i in range(0, number_of_packets):
+            if (i + 1) * max_data_size < len(self.data):
+                packet_data[i] = self.data[i * max_data_size : (i + 1) * max_data_size]
+            else:
+                packet_data[i] = self.data[i * max_data_size :]
+        return packet_data
