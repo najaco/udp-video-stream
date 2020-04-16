@@ -1,5 +1,6 @@
 from enum import Enum
 from functools import total_ordering
+
 BYTE_LOC = 4
 
 

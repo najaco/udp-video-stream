@@ -16,7 +16,7 @@ from typing import List
 
 MAX_PKT_SIZE = 1024
 MAX_DATA_SIZE = MAX_PKT_SIZE - 4 * 4
-SLEEP_TIME = .016  # equivalent to 60 fps
+SLEEP_TIME = 0.016  # equivalent to 60 fps
 PATH_TO_FRAMES = "./assets/road480p/"
 RETR_TIME = 5
 RETR_INTERVAL = 1
@@ -38,9 +38,9 @@ def to_data_arr(frame: Frame, max_data_size: int) -> List[str]:
     packet_data = [None] * number_of_packets
     for i in range(0, number_of_packets):
         if (i + 1) * max_data_size < len(data):
-            packet_data[i] = data[i * max_data_size: (i + 1) * max_data_size]
+            packet_data[i] = data[i * max_data_size : (i + 1) * max_data_size]
         else:
-            packet_data[i] = data[i * max_data_size:]
+            packet_data[i] = data[i * max_data_size :]
     return packet_data
 
 
@@ -122,13 +122,16 @@ def main():
     server_port = sys.argv[1]
     server_socket = socket(AF_INET, SOCK_STREAM)
     server_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
-    server_socket.bind(('', int(server_port)))
+    server_socket.bind(("", int(server_port)))
     server_socket.listen(8)
     path = "./assets/road480p/"
     number_of_frames = len(os.listdir(path)) - 1  # - 1 needed?
     while True:
         connection_socket, addr = server_socket.accept()
-        threading.Thread(target=server_handler, args=(connection_socket, addr, path, 0, number_of_frames)).start()
+        threading.Thread(
+            target=server_handler,
+            args=(connection_socket, addr, path, 0, number_of_frames),
+        ).start()
     server_socket.close()
 
 
@@ -136,5 +139,5 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print(usage)
         exit(1)
-    logging.basicConfig(filename='server.log', level=logging.INFO)
+    logging.basicConfig(filename="server.log", level=logging.INFO)
     main()

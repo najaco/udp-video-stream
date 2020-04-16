@@ -2,7 +2,7 @@ from typing import Generic, Dict, TypeVar, List, Tuple
 
 from .node import Node
 
-E = TypeVar('E')
+E = TypeVar("E")
 
 
 class DeltaList(Generic[E]):

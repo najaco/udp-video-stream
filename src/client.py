@@ -23,7 +23,11 @@ PRIORITY_THRESHOLD = Frame.Priority.IMPORTANT
 
 def writer(client_socket, meta_data: Metadata):
     logging.info("Writer Started")
-    logging.info("Receiving {} with {} frames".format(meta_data.file_name, meta_data.number_of_frames))
+    logging.info(
+        "Receiving {} with {} frames".format(
+            meta_data.file_name, meta_data.number_of_frames
+        )
+    )
 
     frames = {}
     completed_frames = 0
@@ -99,5 +103,5 @@ if __name__ == "__main__":
     if len(sys.argv) < 3:
         print(usage)
         exit(1)
-    logging.basicConfig(filename='client.log', level=logging.INFO)
+    logging.basicConfig(filename="client.log", level=logging.INFO)
     main()

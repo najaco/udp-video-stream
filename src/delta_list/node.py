@@ -1,6 +1,6 @@
 from typing import Generic, Any, Callable, TypeVar
 
-E = TypeVar('E')
+E = TypeVar("E")
 
 
 class Node(Generic[E]):

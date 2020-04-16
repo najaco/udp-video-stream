@@ -18,8 +18,11 @@ class FrameBuilder:
         :return: true if data replaces None, false if position has already been filled
         """
         if seq_no >= self.n_expected_packets:
-            raise Exception("Packet # is greater than what was initially expected\nExpected Packets: {}\nPacket #: {}".format(
-                    self.n_expected_packets, seq_no))
+            raise Exception(
+                "Packet # is greater than what was initially expected\nExpected Packets: {}\nPacket #: {}".format(
+                    self.n_expected_packets, seq_no
+                )
+            )
         if self.data_arr[seq_no] is None:
             self.data_arr[seq_no] = data
             self.size += 1
@@ -45,5 +48,5 @@ class FrameBuilder:
         return {
             "n_expected_packets": self.n_expected_packets,
             "size": self.size,
-            "data": "".join(x for x in self.data_arr)
+            "data": "".join(x for x in self.data_arr),
         }
