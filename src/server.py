@@ -1,26 +1,27 @@
+import configparser
 import logging
-import math
 import os
 import sys
 import threading
 import time
-
-from objs.frame import Frame
-from objs.metadata import Metadata
-from objs.packet import Packet
-from objs.ack import Ack
-from delta_list.delta_list import DeltaList
-
 from socket import *
 from typing import List
 
-MAX_PKT_SIZE = 1024
+from delta_list.delta_list import DeltaList
+from objs.ack import Ack
+from objs.frame import Frame
+from objs.metadata import Metadata
+from objs.packet import Packet
+
+config = configparser.ConfigParser()
+config.read("config.ini")
+MAX_PKT_SIZE: int = int(config["DEFAULT"]["MaxPacketSize"])
 MAX_DATA_SIZE = MAX_PKT_SIZE - 4 * 4
-SLEEP_TIME = 0.016  # equivalent to 60 fps
-PATH_TO_FRAMES = "./assets/road480p/"
-RETR_TIME = 5
-RETR_INTERVAL = 1
-PRIORITY_THRESHOLD = Frame.Priority.IMPORTANT
+PRIORITY_THRESHOLD: Frame.Priority = Frame.Priority(int(config["DEFAULT"]["PriorityThreshold"]))
+CACHE_PATH: str = config["SERVER"]["CachePath"]
+SLEEP_TIME = float(config["SERVER"]["SleepTime"])
+RETR_TIME = int(config["SERVER"]["RetransmissionTime"])
+RETR_INTERVAL = int(config["SERVER"]["RetransmissionInterval"])
 
 
 def create_packets(frame: Frame) -> List[Packet]:
@@ -125,5 +126,5 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print(usage)
         exit(1)
-    logging.basicConfig(filename="server.log", level=logging.INFO)
+    logging.basicConfig(filename=config["SERVER"]["LogPath"], level=logging.INFO)
     main()
