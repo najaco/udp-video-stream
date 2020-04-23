@@ -6,6 +6,7 @@ import threading
 import time
 from socket import *
 from typing import List
+import random
 
 from delta_list.delta_list import DeltaList
 from objs.ack import Ack
@@ -25,6 +26,7 @@ SLEEP_TIME = float(config["SERVER"]["SleepTime"])
 RETR_TIME = int(config["SERVER"]["RetransmissionTime"])
 RETR_INTERVAL = int(config["SERVER"]["RetransmissionInterval"])
 
+DROP_CHANCE: float = .10
 
 def create_packets(frame: Frame) -> List[Packet]:
     data_arr: List[str] = frame.to_data_arr(MAX_DATA_SIZE)
@@ -55,7 +57,9 @@ def server_handler(con_socket, ad, path_to_frames, starting_frame, total_frames)
             a: Ack = Ack.unpack(msg_from)
             critical_frame_acks[a.frame_no] = True
             # remove frame from dlist here
-            frame_retr_times.remove(a.frame_no)
+            print("Attempting to remove {}".format(a.frame_no))
+            if frame_retr_times.contains(a.frame_no):
+                frame_retr_times.remove(a.frame_no)
             logging.info("ACK {}".format(a.frame_no))
         logging.info("Reader Finished")
 
@@ -68,7 +72,9 @@ def server_handler(con_socket, ad, path_to_frames, starting_frame, total_frames)
                 logging.info("Retransmitting frame {}".format(i))
                 if i in critical_frame_acks and critical_frame_acks[i] is False:
                     for packet in create_packets(frames[i]):
-                        con_socket.send(packet.pack())
+                        if random.random() > DROP_CHANCE:
+                            con_socket.send(packet.pack())
+                logging.info("Retransmitted frame {}".format(i))
 
             time.sleep(RETR_INTERVAL)
         logging.info("Retransmitter Finished")
@@ -94,7 +100,8 @@ def server_handler(con_socket, ad, path_to_frames, starting_frame, total_frames)
         packets: List[Packet] = create_packets(frame)
         for p in packets:
             data = p.pack()
-            con_socket.send(data)
+            if random.random() > DROP_CHANCE:
+                con_socket.send(data)
 
         time.sleep(SLEEP_TIME)  # sleep
         logging.info("Sent Frame #: {}".format(frame_no))

@@ -57,14 +57,16 @@ class DeltaList(Generic[E]):
             if self.__head.next is not None:
                 self.__nodes[e].next.key += self.__head.key  # update key of next node
             self.__head = self.__nodes[e].next
+            self.__size -= 1
+            del self.__nodes[e]
         elif self.__nodes[e] == self.__tail:
             self.remove_last()
         else:
             self.__nodes[e].prev.next = self.__nodes[e].next
             self.__nodes[e].next.prev = self.__nodes[e].prev
             self.__nodes[e].next.key += self.__nodes[e].key  # update key of next node
-        self.__size -= 1
-        del self.__nodes[e]
+            self.__size -= 1
+            del self.__nodes[e]
         return True
 
     def remove_all_ready(self) -> List[E]:
@@ -91,17 +93,20 @@ class DeltaList(Generic[E]):
     def remove_last(self) -> E:
         if self.__size == 0:
             return None
-        n: Node[E] = self.__tail.data
+        n: Node[E] = self.__tail
         if self.__size == 1:
             self.__head = None
             self.__tail = None
-            self.__cumulative_key -= n.key
         else:
-            self.__tail.prev = self.__tail.next
-            self.__cumulative_key = 0
+            self.__tail.prev.next = self.__tail.next
+            self.__tail = self.__tail.prev
+        self.__cumulative_key -= n.key
         self.__size -= 1
         del self.__nodes[n.data]
         return n.data
+
+    def contains(self, e: E) -> bool:
+        return e in self.__nodes
 
     def __insert_first(self, k: int, e: E) -> None:
         self.__nodes[e] = Node[E](key=k, data=e)
@@ -122,6 +127,14 @@ class DeltaList(Generic[E]):
     @property
     def size(self) -> int:
         return self.__size
+
+    @property
+    def head(self) -> Node[E]:
+        return self.__head
+
+    @property
+    def tail(self) -> Node[E]:
+        return self.__tail
 
     def print_list(self) -> None:
         p = self.__head

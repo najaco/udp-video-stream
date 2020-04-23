@@ -71,7 +71,18 @@ def test_delta_remove_first():
         assert i[1] == j[1]
     assert dlist_list[0][0] == items[0][0]
 
+def test_delta_remove_last():
+    dlist: DeltaList[str] = DeltaList()
+    items = [(5, "A"), (5, "B")]
+    for (k, e) in items:
+        dlist.insert(k, e)
+    assert dlist.remove_last() == "B"
+    assert dlist.head is not None
+    assert dlist.tail is not None
+
 
 def test_delta_remove_first_empty_none():
     dlist: DeltaList[str] = DeltaList()
     assert dlist.remove_first() is None
+
+
