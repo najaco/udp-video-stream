@@ -17,7 +17,9 @@ config = configparser.ConfigParser()
 config.read("config.ini")
 MAX_PKT_SIZE: int = int(config["DEFAULT"]["MaxPacketSize"])
 MAX_DATA_SIZE = MAX_PKT_SIZE - 4 * 4
-PRIORITY_THRESHOLD: Frame.Priority = Frame.Priority(int(config["DEFAULT"]["PriorityThreshold"]))
+PRIORITY_THRESHOLD: Frame.Priority = Frame.Priority(
+    int(config["DEFAULT"]["PriorityThreshold"])
+)
 CACHE_PATH: str = config["SERVER"]["CachePath"]
 SLEEP_TIME = float(config["SERVER"]["SleepTime"])
 RETR_TIME = int(config["SERVER"]["RetransmissionTime"])

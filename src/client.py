@@ -17,7 +17,9 @@ from objs.packet import Packet
 config = configparser.ConfigParser()
 config.read("config.ini")
 MAX_PKT_SIZE: int = int(config["DEFAULT"]["MaxPacketSize"])
-PRIORITY_THRESHOLD: Frame.Priority = Frame.Priority(int(config["DEFAULT"]["PriorityThreshold"]))
+PRIORITY_THRESHOLD: Frame.Priority = Frame.Priority(
+    int(config["DEFAULT"]["PriorityThreshold"])
+)
 CACHE_PATH: str = config["CLIENT"]["CachePath"]
 
 
@@ -86,7 +88,9 @@ def main():
     server_ip, server_port = sys.argv[1], sys.argv[2]
     client_socket = socket(AF_INET, SOCK_STREAM)
     client_socket.connect((server_ip, int(server_port)))
-    Path(CACHE_PATH).mkdir(parents=True, exist_ok=True)  # create directory if it does not exist
+    Path(CACHE_PATH).mkdir(
+        parents=True, exist_ok=True
+    )  # create directory if it does not exist
     meta_data_msg = client_socket.recv(1024)
     meta_data: Metadata = Metadata.unpack(meta_data_msg)
     logging.info(meta_data.to_dict())
