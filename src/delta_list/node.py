@@ -15,5 +15,5 @@ class Node(Generic[E]):
             "data": self.data,
             "key": self.key,
             "next": self.next,
-            "prev": self.prev
+            "prev": self.prev,
         }

@@ -6,9 +6,10 @@ from .packet import Packet
 
 
 class FrameBuilder:
-    def __init__(self, n_expected_packets: int):
+    def __init__(self, n_expected_packets: int, priority: Frame.priority):
         self.n_expected_packets = n_expected_packets
         self.size = 0
+        self.priority = priority
         self.data_arr: List[bytes] = [None] * n_expected_packets
 
     def emplace(self, seq_no: int, data: bytes) -> bool:
