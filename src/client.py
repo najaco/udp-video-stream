@@ -41,7 +41,8 @@ def writer(client_socket, meta_data: Metadata):
         if len(msg_from) == 0:
             break
         p: Packet = Packet.unpack(msg_from)
-
+        if p is None:
+            continue
         # check if frame # of packet is in frames here
 
         if p.frame_no not in frames:

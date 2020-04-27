@@ -17,7 +17,7 @@ from objs.packet import Packet
 config = configparser.ConfigParser()
 config.read("config.ini")
 MAX_PKT_SIZE: int = int(config["DEFAULT"]["MaxPacketSize"])
-MAX_DATA_SIZE = MAX_PKT_SIZE - 4 * 5
+MAX_DATA_SIZE = MAX_PKT_SIZE - 4 * 6
 PRIORITY_THRESHOLD: Frame.Priority = Frame.Priority(
     int(config["DEFAULT"]["PriorityThreshold"])
 )

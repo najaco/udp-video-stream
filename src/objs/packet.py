@@ -3,16 +3,18 @@ from typing import Dict
 
 from . import Frame
 
+ID = 1913
+
 
 class Packet:
     def __init__(
-        self,
-        frame_no: int,
-        seq_no: int,
-        total_seq_no: int,
-        size: int,
-        priority: Frame.priority,
-        data: str,
+            self,
+            frame_no: int,
+            seq_no: int,
+            total_seq_no: int,
+            size: int,
+            priority: Frame.priority,
+            data: str,
     ):
         self.frame_no: int = frame_no
         self.seq_no: int = seq_no
@@ -23,7 +25,8 @@ class Packet:
 
     def pack(self):
         return struct.pack(
-            "!IIIII{}s".format(self.size),
+            "!IIIIII{}s".format(self.size),
+            ID,
             self.frame_no,
             self.seq_no,
             self.total_seq_no,
@@ -43,7 +46,9 @@ class Packet:
 
     @staticmethod
     def unpack(msg):
-        t = struct.unpack("!IIIII{}s".format(len(msg) - 4 * 5), msg)
+        t = struct.unpack("!IIIIII{}s".format(len(msg) - 4 * 6), msg)
+        if t[0] != ID:
+            return None
         return Packet(
-            t[0], t[1], t[2], t[3], Frame.Priority(t[4]), t[5]
+            t[1], t[2], t[3], t[4], Frame.Priority(t[5]), t[6]
         )  # Takes all except for the padding
