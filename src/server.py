@@ -109,8 +109,6 @@ def server_handler(con_socket, ad, path_to_frames, starting_frame, total_frames)
             data = p.pack()
             if random.random() > DROP_CHANCE:
                 con_socket.send(data)
-            else:
-                print("Dropped Packet in Frame {}".format(frame_no))
 
         time.sleep(SLEEP_TIME)  # sleep
         logging.info("Sent Frame #: {}".format(frame_no))
