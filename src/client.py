@@ -46,7 +46,9 @@ def writer(client_socket, meta_data: Metadata):
         # check if frame # of packet is in frames here
 
         if p.frame_no not in frames:
-            frames[p.frame_no] = FrameBuilder(n_expected_packets=p.total_seq_no, priority=p.priority)
+            frames[p.frame_no] = FrameBuilder(
+                n_expected_packets=p.total_seq_no, priority=p.priority
+            )
         try:
             frames[p.frame_no].emplace(p.seq_no, p.data)
         except Exception:
@@ -73,13 +75,15 @@ def reader(meta_data: Metadata):
     while frame_no < meta_data.number_of_frames:
         logging.info("Waiting for {}{}.h264 exists".format(CACHE_PATH, frame_no))
         time_passed = 0
-        while not path.exists("{}{}.h264".format(CACHE_PATH, frame_no)) and (time_passed < FILE_MAX_WAIT_TIME or (
-                frame_no in frames and frames[frame_no].priority >= PRIORITY_THRESHOLD)):
+        while not path.exists("{}{}.h264".format(CACHE_PATH, frame_no)) and (
+            time_passed < FILE_MAX_WAIT_TIME
+            or (frame_no in frames and frames[frame_no].priority >= PRIORITY_THRESHOLD)
+        ):
             time_passed += FILE_WAIT_TIME
             time.sleep(FILE_WAIT_TIME)  # force context switch
 
         if not path.exists(
-                "{}{}.h264".format(CACHE_PATH, frame_no)
+            "{}{}.h264".format(CACHE_PATH, frame_no)
         ):  # skip if frame does not exist
             logging.warning("Skipping Frame {}".format(frame_no))
             frame_no += 1

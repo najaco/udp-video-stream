@@ -8,13 +8,13 @@ ID = 1913
 
 class Packet:
     def __init__(
-            self,
-            frame_no: int,
-            seq_no: int,
-            total_seq_no: int,
-            size: int,
-            priority: Frame.priority,
-            data: str,
+        self,
+        frame_no: int,
+        seq_no: int,
+        total_seq_no: int,
+        size: int,
+        priority: Frame.priority,
+        data: str,
     ):
         self.frame_no: int = frame_no
         self.seq_no: int = seq_no

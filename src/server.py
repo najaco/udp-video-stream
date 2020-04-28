@@ -26,6 +26,7 @@ SLEEP_TIME = float(config["SERVER"]["SleepTime"])
 RETR_TIME = int(config["SERVER"]["RetransmissionTime"])
 RETR_INTERVAL = int(config["SERVER"]["RetransmissionInterval"])
 
+
 def create_packets(frame: Frame) -> List[Packet]:
     data_arr: List[str] = frame.to_data_arr(MAX_DATA_SIZE)
     packet_no = 0
@@ -75,7 +76,9 @@ def server_handler(con_socket, ad, path_to_frames, starting_frame, total_frames)
             for i in ready_frames:
                 logging.info("Retransmitting frame {}".format(i))
                 if i in critical_frame_acks and critical_frame_acks[i] is False:
-                    frame_retr_times.insert(k=RETR_TIME, e=i) # re insert frame to delta list
+                    frame_retr_times.insert(
+                        k=RETR_TIME, e=i
+                    )  # re insert frame to delta list
                     for packet in create_packets(frames[i]):
                         con_socket.send(packet.pack())
                 logging.info("Retransmitted frame {}".format(i))
