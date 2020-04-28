@@ -78,6 +78,7 @@ def server_handler(con_socket, ad, path_to_frames, starting_frame, total_frames)
             for i in ready_frames:
                 logging.info("Retransmitting frame {}".format(i))
                 if i in critical_frame_acks and critical_frame_acks[i] is False:
+                    frame_retr_times.insert(k=RETR_TIME, e=i) # re insert frame to delta list
                     for packet in create_packets(frames[i]):
                         if random.random() > DROP_CHANCE:
                             con_socket.send(packet.pack())

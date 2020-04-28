@@ -73,7 +73,8 @@ def reader(meta_data: Metadata):
     while frame_no < meta_data.number_of_frames:
         logging.info("Waiting for {}{}.h264 exists".format(CACHE_PATH, frame_no))
         time_passed = 0
-        while not path.exists("{}{}.h264".format(CACHE_PATH, frame_no)) and (time_passed < FILE_MAX_WAIT_TIME or (frame_no in frames and frames[frame_no].priority >= PRIORITY_THRESHOLD)):
+        while not path.exists("{}{}.h264".format(CACHE_PATH, frame_no)) and (time_passed < FILE_MAX_WAIT_TIME or (
+                frame_no in frames and frames[frame_no].priority >= PRIORITY_THRESHOLD)):
             time_passed += FILE_WAIT_TIME
             time.sleep(FILE_WAIT_TIME)  # force context switch
 
