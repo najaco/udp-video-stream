@@ -6,6 +6,7 @@ import threading
 import time
 from socket import *
 from typing import List
+import random
 
 from delta_list.delta_list import DeltaList
 from objs.ack import Ack
@@ -16,7 +17,7 @@ from objs.packet import Packet
 config = configparser.ConfigParser()
 config.read("config.ini")
 MAX_PKT_SIZE: int = int(config["DEFAULT"]["MaxPacketSize"])
-MAX_DATA_SIZE = MAX_PKT_SIZE - 4 * 4
+MAX_DATA_SIZE = MAX_PKT_SIZE - 4 * 6
 PRIORITY_THRESHOLD: Frame.Priority = Frame.Priority(
     int(config["DEFAULT"]["PriorityThreshold"])
 )
@@ -32,7 +33,14 @@ def create_packets(frame: Frame) -> List[Packet]:
     packets: List[Packet] = []
     for data in data_arr:
         packets.append(
-            Packet(frame.frame_no, packet_no, len(data_arr), len(data), data)
+            Packet(
+                frame_no=frame.frame_no,
+                seq_no=packet_no,
+                total_seq_no=len(data_arr),
+                size=len(data),
+                priority=frame.priority,
+                data=data,
+            )
         )
         packet_no += 1
     return packets
@@ -55,7 +63,8 @@ def server_handler(con_socket, ad, path_to_frames, starting_frame, total_frames)
             a: Ack = Ack.unpack(msg_from)
             critical_frame_acks[a.frame_no] = True
             # remove frame from dlist here
-            frame_retr_times.remove(a.frame_no)
+            if frame_retr_times.contains(a.frame_no):
+                frame_retr_times.remove(a.frame_no)
             logging.info("ACK {}".format(a.frame_no))
         logging.info("Reader Finished")
 
@@ -67,8 +76,12 @@ def server_handler(con_socket, ad, path_to_frames, starting_frame, total_frames)
             for i in ready_frames:
                 logging.info("Retransmitting frame {}".format(i))
                 if i in critical_frame_acks and critical_frame_acks[i] is False:
+                    frame_retr_times.insert(
+                        k=RETR_TIME, e=i
+                    )  # re insert frame to delta list
                     for packet in create_packets(frames[i]):
                         con_socket.send(packet.pack())
+                logging.info("Retransmitted frame {}".format(i))
 
             time.sleep(RETR_INTERVAL)
         logging.info("Retransmitter Finished")
@@ -86,15 +99,14 @@ def server_handler(con_socket, ad, path_to_frames, starting_frame, total_frames)
 
         frame = Frame(f.read(), frame_no)
         frames[frame_no] = frame
-        if frame.priority >= PRIORITY_THRESHOLD:  # add support for >= later
+        if frame.priority >= PRIORITY_THRESHOLD:
             critical_frame_acks[frame_no] = False
             frame_retr_times.insert(k=RETR_TIME, e=frame_no)
 
         # send_frame(frame, frame_no, con_socket)
         packets: List[Packet] = create_packets(frame)
         for p in packets:
-            data = p.pack()
-            con_socket.send(data)
+            con_socket.send(p.pack())
 
         time.sleep(SLEEP_TIME)  # sleep
         logging.info("Sent Frame #: {}".format(frame_no))
