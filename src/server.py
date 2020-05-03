@@ -1,12 +1,13 @@
 import configparser
 import logging
 import os
+import shutil
+import signal
 import sys
 import threading
 import time
 from socket import *
 from typing import List
-import random
 
 from delta_list.delta_list import DeltaList
 from objs.ack import Ack
@@ -116,29 +117,52 @@ def server_handler(con_socket, ad, path_to_frames, starting_frame, total_frames)
     logging.info("Handler Finished")
 
 
-usage = "usage: python " + sys.argv[0] + " [portno]"
+def cl_ffmpeg(file_path: str, cache_path: str):
+    if not os.path.exists(cache_path):
+        os.mkdir(cache_path)
+    elif not os.path.isdir(cache_path):
+        raise Exception(
+            "{} must not already exist as a non directory".format(cache_path)
+        )
+    cmd = "ffmpeg -i {} -f image2 -c:v copy -bsf h264_mp4toannexb {}%d.h264".format(
+        file_path, cache_path
+    )
+    os.system(cmd)
 
 
-def main():
-    server_port = sys.argv[1]
+def clean_up(sig, frame):
+    shutil.rmtree(CACHE_PATH)
+    sys.exit(0)
+
+
+usage = "usage: python " + sys.argv[0] + " [portno] [file]"
+
+
+def main(argv: [str]):
+    server_port = argv[1]
+    file_path = argv[2]
+
+    cl_ffmpeg(file_path, CACHE_PATH)
+
     server_socket = socket(AF_INET, SOCK_STREAM)
     server_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
     server_socket.bind(("", int(server_port)))
     server_socket.listen(8)
-    path = "./assets/road480p/"
-    number_of_frames = len(os.listdir(path)) - 1  # - 1 needed?
+    number_of_frames = len(os.listdir(CACHE_PATH)) - 1
     while True:
         connection_socket, addr = server_socket.accept()
         threading.Thread(
             target=server_handler,
-            args=(connection_socket, addr, path, 0, number_of_frames),
+            args=(connection_socket, addr, CACHE_PATH, 0, number_of_frames),
         ).start()
     server_socket.close()
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
+    if len(sys.argv) < 3:
         print(usage)
         exit(1)
+
+    signal.signal(signal.SIGINT, clean_up)
     logging.basicConfig(filename=config["SERVER"]["LogPath"], level=logging.INFO)
-    main()
+    main(sys.argv)

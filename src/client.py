@@ -1,6 +1,8 @@
 import configparser
 import logging
 import os
+import shutil
+import signal
 import sys
 import threading
 import time
@@ -99,11 +101,26 @@ def reader(meta_data: Metadata):
     logging.info("Reader Finished")
 
 
+def set_up_dirs(cache_path: str):
+    if not os.path.exists(cache_path):
+        os.mkdir(cache_path)
+    elif not os.path.isdir(cache_path):
+        raise Exception(
+            "{} must not already exist as a non directory".format(cache_path)
+        )
+
+
+
+
+def clean_up(sig, frame):
+    shutil.rmtree(CACHE_PATH)
+    sys.exit(0)
+
 usage = "usage: python " + sys.argv[0] + " [serverIP] " + " [serverPort]"
 
-
-def main():
-    server_ip, server_port = sys.argv[1], sys.argv[2]
+def main(argv: [str]):
+    server_ip, server_port = argv[1], argv[2]
+    set_up_dirs(CACHE_PATH)
     client_socket = socket(AF_INET, SOCK_STREAM)
     client_socket.connect((server_ip, int(server_port)))
     Path(CACHE_PATH).mkdir(
@@ -126,6 +143,7 @@ if __name__ == "__main__":
     if len(sys.argv) < 3:
         print(usage)
         exit(1)
+    signal.signal(signal.SIGINT, clean_up)
     logging.basicConfig(filename=config["CLIENT"]["LogPath"], level=logging.INFO)
     logging.info(config)
-    main()
+    main(sys.argv)
