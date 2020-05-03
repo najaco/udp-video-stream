@@ -110,13 +110,13 @@ def set_up_dirs(cache_path: str):
         )
 
 
-
-
 def clean_up(sig, frame):
     shutil.rmtree(CACHE_PATH)
     sys.exit(0)
 
+
 usage = "usage: python " + sys.argv[0] + " [serverIP] " + " [serverPort]"
+
 
 def main(argv: [str]):
     server_ip, server_port = argv[1], argv[2]
