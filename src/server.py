@@ -25,7 +25,7 @@ PRIORITY_THRESHOLD: Frame.Priority = Frame.Priority(
 CACHE_PATH: str = config["SERVER"]["CachePath"]
 SLEEP_TIME = float(config["SERVER"]["SleepTime"])
 RETR_TIME = int(config["SERVER"]["RetransmissionTime"])
-RETR_INTERVAL = int(config["SERVER"]["RetransmissionInterval"])
+RETR_INTERVAL = float(config["SERVER"]["RetransmissionInterval"])
 
 
 def create_packets(frame: Frame) -> List[Packet]:
