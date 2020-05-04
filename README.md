@@ -1,7 +1,7 @@
 # UDP Video Stream
 [![Build Status](https://travis-ci.com/nathancohen4299/udp-video-stream.svg?branch=dev)](https://travis-ci.com/nathancohen4299/udp-video-stream)
 
-## Summary
+## Description
 UDP Video Stream is a server client streaming application written in python which streams video using UDP except for packets deemed important, in which they are sent over UDP with elements of RDT. 
 
 ## Usage
