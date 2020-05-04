@@ -24,8 +24,8 @@ PRIORITY_THRESHOLD: Frame.Priority = Frame.Priority(
     int(config["DEFAULT"]["PriorityThreshold"])
 )
 CACHE_PATH: str = config["CLIENT"]["CachePath"]
-FILE_WAIT_TIME: float = 0.005
-FILE_MAX_WAIT_TIME: float = 0.03
+FILE_WAIT_TIME: float = float(config["CLIENT"]["FileWaitTime"])
+FILE_MAX_WAIT_TIME: float = float(config["CLIENT"]["FileMaxWaitTime"])
 
 frames: Dict[int, FrameBuilder] = {}
 
