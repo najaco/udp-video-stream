@@ -57,7 +57,7 @@ def writer(client_socket, meta_data: Metadata):
             print("Error with frame no {}".format(p.frame_no))
         # check if frame is filled
         if frames[p.frame_no].is_complete():
-            frame_to_save = open("./temp/{}.h264".format(p.frame_no), "wb+")
+            frame_to_save = open("{}{}.h264".format(CACHE_PATH, p.frame_no), "wb+")
             frame_to_save.write(frames[p.frame_no].get_data_as_bytes())
             frame_to_save.close()
             if frames[p.frame_no].to_frame().priority >= PRIORITY_THRESHOLD:
