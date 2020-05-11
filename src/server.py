@@ -6,6 +6,7 @@ import signal
 import sys
 import threading
 import time
+import random
 from socket import *
 from typing import List
 
@@ -26,7 +27,7 @@ CACHE_PATH: str = config["SERVER"]["CachePath"]
 SLEEP_TIME = float(config["SERVER"]["SleepTime"])
 RETR_TIME = int(config["SERVER"]["RetransmissionTime"])
 RETR_INTERVAL = float(config["SERVER"]["RetransmissionInterval"])
-
+DROP_RATE = .005
 
 def create_packets(frame: Frame) -> List[Packet]:
     data_arr: List[str] = frame.to_data_arr(MAX_DATA_SIZE)
@@ -81,7 +82,8 @@ def server_handler(con_socket, ad, path_to_frames, starting_frame, total_frames)
                         k=RETR_TIME, e=i
                     )  # re insert frame to delta list
                     for packet in create_packets(frames[i]):
-                        con_socket.send(packet.pack())
+                        if random.random() >= DROP_RATE:
+                            con_socket.send(packet.pack())
                 logging.info("Retransmitted frame {}".format(i))
 
             time.sleep(RETR_INTERVAL)
@@ -100,14 +102,16 @@ def server_handler(con_socket, ad, path_to_frames, starting_frame, total_frames)
 
         frame = Frame(f.read(), frame_no)
         frames[frame_no] = frame
-        if frame.priority >= PRIORITY_THRESHOLD:
+        if frame.priority >= PRIORITY_THRESHOLD or frame_no == 1:
+
             critical_frame_acks[frame_no] = False
             frame_retr_times.insert(k=RETR_TIME, e=frame_no)
 
         # send_frame(frame, frame_no, con_socket)
         packets: List[Packet] = create_packets(frame)
         for p in packets:
-            con_socket.send(p.pack())
+            if random.random() >= DROP_RATE:
+                con_socket.send(p.pack())
 
         time.sleep(SLEEP_TIME)  # sleep
         logging.info("Sent Frame #: {}".format(frame_no))

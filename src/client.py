@@ -46,7 +46,6 @@ def writer(client_socket, meta_data: Metadata):
         if p is None:
             continue
         # check if frame # of packet is in frames here
-
         if p.frame_no not in frames:
             frames[p.frame_no] = FrameBuilder(
                 n_expected_packets=p.total_seq_no, priority=p.priority
@@ -60,7 +59,7 @@ def writer(client_socket, meta_data: Metadata):
             frame_to_save = open("{}{}.h264".format(CACHE_PATH, p.frame_no), "wb+")
             frame_to_save.write(frames[p.frame_no].get_data_as_bytes())
             frame_to_save.close()
-            if frames[p.frame_no].to_frame().priority >= PRIORITY_THRESHOLD:
+            if frames[p.frame_no].to_frame().priority >= PRIORITY_THRESHOLD or p.frame_no == 1:
                 client_socket.send(Ack(p.frame_no).pack())
                 logging.info("ACK {} Sent".format(p.frame_no))
             del frames[p.frame_no]  # delete frame now that it has been saved
