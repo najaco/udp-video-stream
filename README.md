@@ -9,10 +9,18 @@ UDP Video Stream is a server client streaming application written in python whic
 ```
 python3 src/server.py <port_no> <path_to_file>
 ```
+or
+```
+pipenv run python src/server.py <port_no> <path_to_file>
+```
 
 ### Client
 ```
 python3 src/client.py <ip_address> <port_no> | vlc --demux h264 -
+```
+or
+```
+pipenv run python src/client.py <ip_address> <port_no> | vlc --demux h264 -
 ```
 
 ## Dependencies
