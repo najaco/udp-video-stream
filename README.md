@@ -9,7 +9,7 @@ UDP Video Stream is a server client streaming application written in python whic
 ```
 python3 src/server.py <port_no> <path_to_file>
 ```
-or
+or if you have `pipenv` installed:
 ```
 pipenv run python src/server.py <port_no> <path_to_file>
 ```
@@ -18,7 +18,7 @@ pipenv run python src/server.py <port_no> <path_to_file>
 ```
 python3 src/client.py <ip_address> <port_no> | vlc --demux h264 -
 ```
-or
+or if you have `pipenv` installed:
 ```
 pipenv run python src/client.py <ip_address> <port_no> | vlc --demux h264 -
 ```
@@ -28,3 +28,6 @@ pipenv run python src/client.py <ip_address> <port_no> | vlc --demux h264 -
 * [FFmpeg](https://www.ffmpeg.org/)
 #### Dependencies for the **client**:
 * [VLC](https://www.videolan.org/vlc/index.html)
+
+## Demo
+Link to video demo: []()
