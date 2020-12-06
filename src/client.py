@@ -87,9 +87,9 @@ def reader(meta_data: Metadata):
             time.sleep(FILE_WAIT_TIME)  # force context switch
 
         if not path.exists(
-                "{}{}.h264".format(CACHE_PATH, frame_no)
+                f"{CACHE_PATH}{frame_no}.h264"
         ):  # skip if frame does not exist
-            logging.warning("Skipping Frame {}".format(frame_no))
+            logging.warning(f"Skipping Frame {frame_no}")
             frame_no += 1
             continue
 
