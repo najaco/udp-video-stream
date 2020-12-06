@@ -1,4 +1,3 @@
 rm -rf temp
-rm client.log
-rm server.log
+rm -r logs
 rm -rf frames

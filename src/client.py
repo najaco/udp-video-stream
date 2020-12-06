@@ -24,6 +24,7 @@ PRIORITY_THRESHOLD: Frame.Priority = Frame.Priority(
     int(config["DEFAULT"]["PriorityThreshold"])
 )
 CACHE_PATH: str = config["CLIENT"]["CachePath"]
+LOG_PATH: Path = Path(config["CLIENT"]["LogPath"])
 FILE_WAIT_TIME: float = float(config["CLIENT"]["FileWaitTime"])
 FILE_MAX_WAIT_TIME: float = float(config["CLIENT"]["FileMaxWaitTime"])
 
@@ -57,6 +58,7 @@ def writer(client_socket, meta_data: Metadata):
             print("Error with frame no {}".format(p.frame_no))
         # check if frame is filled
         if frames[p.frame_no].is_complete():
+            # logging.info(f"Detected Beginning of Frame: {p.frame_no} at {int(time.time() * 1000)}ms")
             frame_to_save = open("{}{}.h264".format(CACHE_PATH, p.frame_no), "wb+")
             frame_to_save.write(frames[p.frame_no].get_data_as_bytes())
             frame_to_save.close()
@@ -72,29 +74,30 @@ def writer(client_socket, meta_data: Metadata):
 def reader(meta_data: Metadata):
     logging.info("Reader Started")
     frame_no = 1
-    while not path.exists("{}{}.h264".format(CACHE_PATH, 1)):
+    while not path.exists(f"{CACHE_PATH}{1}.h264"):
         time.sleep(FILE_WAIT_TIME)
     while frame_no < meta_data.number_of_frames:
         logging.info("Waiting for {}{}.h264 exists".format(CACHE_PATH, frame_no))
         time_passed = 0
         while not path.exists("{}{}.h264".format(CACHE_PATH, frame_no)) and (
-            time_passed < FILE_MAX_WAIT_TIME
-            or (frame_no in frames and frames[frame_no].priority >= PRIORITY_THRESHOLD)
+                time_passed < FILE_MAX_WAIT_TIME
+                or (frame_no in frames and frames[frame_no].priority >= PRIORITY_THRESHOLD)
         ):
             time_passed += FILE_WAIT_TIME
             time.sleep(FILE_WAIT_TIME)  # force context switch
 
         if not path.exists(
-            "{}{}.h264".format(CACHE_PATH, frame_no)
+                "{}{}.h264".format(CACHE_PATH, frame_no)
         ):  # skip if frame does not exist
             logging.warning("Skipping Frame {}".format(frame_no))
             frame_no += 1
             continue
 
-        with open("{}{}.h264".format(CACHE_PATH, frame_no), "rb") as f:
+        with open(f"{CACHE_PATH}{frame_no}.h264", "rb") as f:
             with os.fdopen(sys.stdout.fileno(), "wb", closefd=False) as stdout:
                 stdout.write(f.read())
                 stdout.flush()
+                logging.info(f"Detected Beginning of Frame: {frame_no} at {int(time.time() * 1000)}ms")
         logging.info("Wrote {}{}.h264".format(CACHE_PATH, frame_no))
         os.remove("{}{}.h264".format(CACHE_PATH, frame_no))
         frame_no += 1
@@ -144,6 +147,7 @@ if __name__ == "__main__":
         print(usage)
         exit(1)
     signal.signal(signal.SIGINT, clean_up)
-    logging.basicConfig(filename=config["CLIENT"]["LogPath"], level=logging.INFO)
+    LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    logging.basicConfig(filename=str(LOG_PATH), level=logging.INFO)
     logging.info(config)
     main(sys.argv)

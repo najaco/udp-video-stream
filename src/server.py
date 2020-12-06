@@ -6,6 +6,7 @@ import signal
 import sys
 import threading
 import time
+from pathlib import Path
 from socket import *
 from typing import List
 
@@ -23,6 +24,7 @@ PRIORITY_THRESHOLD: Frame.Priority = Frame.Priority(
     int(config["DEFAULT"]["PriorityThreshold"])
 )
 CACHE_PATH: str = config["SERVER"]["CachePath"]
+LOG_PATH: Path = Path(config["SERVER"]["LogPath"])
 SLEEP_TIME = float(config["SERVER"]["SleepTime"])
 RETR_TIME = int(config["SERVER"]["RetransmissionTime"])
 RETR_INTERVAL = float(config["SERVER"]["RetransmissionInterval"])
@@ -108,9 +110,8 @@ def server_handler(con_socket, ad, path_to_frames, starting_frame, total_frames)
         packets: List[Packet] = create_packets(frame)
         for p in packets:
             con_socket.send(p.pack())
-
+        logging.info(f"Frame {frame_no} sent at {int(time.time() * 1000)}ms")
         time.sleep(SLEEP_TIME)  # sleep
-        logging.info("Sent Frame #: {}".format(frame_no))
     reader_thread.join()
     retransmitter_thread.join()
     con_socket.close()
@@ -164,5 +165,6 @@ if __name__ == "__main__":
         exit(1)
 
     signal.signal(signal.SIGINT, clean_up)
-    logging.basicConfig(filename=config["SERVER"]["LogPath"], level=logging.INFO)
+    LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    logging.basicConfig(filename=str(LOG_PATH), level=logging.INFO)
     main(sys.argv)
