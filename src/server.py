@@ -1,3 +1,4 @@
+import argparse
 import configparser
 import logging
 import os
@@ -24,7 +25,7 @@ PRIORITY_THRESHOLD: Frame.Priority = Frame.Priority(
     int(config["DEFAULT"]["PriorityThreshold"])
 )
 CACHE_PATH: str = config["SERVER"]["CachePath"]
-LOG_PATH: Path = Path(config["SERVER"]["LogPath"])
+LOG_PATH: str = config["SERVER"]["LogPath"]
 SLEEP_TIME = float(config["SERVER"]["SleepTime"])
 RETR_TIME = int(config["SERVER"]["RetransmissionTime"])
 RETR_INTERVAL = float(config["SERVER"]["RetransmissionInterval"])
@@ -138,10 +139,52 @@ def clean_up(sig, frame):
 
 usage = "usage: python " + sys.argv[0] + " [portno] [file]"
 
+if __name__ == "__main__":
 
-def main(argv: [str]):
-    server_port = argv[1]
-    file_path = argv[2]
+    signal.signal(signal.SIGINT, clean_up)
+
+    parser = argparse.ArgumentParser(description="QUIC VideoStreamServer server")
+    parser.add_argument(
+        "app",
+        type=str,
+        nargs="?",
+        default="demo:app",
+        help="the ASGI application as <module>:<attribute>",
+    )
+    parser.add_argument(
+        "--host",
+        type=str,
+        default="::",
+        help="listen on the specified address (defaults to ::)",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=4433,
+        help="listen on the specified port (defaults to 4433)",
+    )
+    parser.add_argument(
+        "-f",
+        "--file-to-send",
+        type=str,
+        required=True,
+        help="load the TLS private key from the specified file",
+    )
+    parser.add_argument(
+        "-l",
+        "--log",
+        type=str,
+        default=LOG_PATH,
+        help="file to send logging information to",
+    )
+    args = parser.parse_args()
+
+    log_path: Path = Path(args.log)
+    server_port = args.port
+    file_path = args.file_to_send
+
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    logging.basicConfig(filename=str(log_path), level=logging.INFO)
 
     cl_ffmpeg(file_path, CACHE_PATH)
 
@@ -157,14 +200,3 @@ def main(argv: [str]):
             args=(connection_socket, addr, CACHE_PATH, 0, number_of_frames),
         ).start()
     server_socket.close()
-
-
-if __name__ == "__main__":
-    if len(sys.argv) < 3:
-        print(usage)
-        exit(1)
-
-    signal.signal(signal.SIGINT, clean_up)
-    LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    logging.basicConfig(filename=str(LOG_PATH), level=logging.INFO)
-    main(sys.argv)

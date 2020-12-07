@@ -1,8 +1,10 @@
+import argparse
 import configparser
 import logging
 import os
 import shutil
 import signal
+import subprocess
 import sys
 import threading
 import time
@@ -29,6 +31,15 @@ FILE_WAIT_TIME: float = float(config["CLIENT"]["FileWaitTime"])
 FILE_MAX_WAIT_TIME: float = float(config["CLIENT"]["FileMaxWaitTime"])
 
 frames: Dict[int, FrameBuilder] = {}
+
+
+def get_vlc_path_for_current_platform(platform: str = sys.platform) -> Path:
+    if platform == "linux" or platform == "linux2":
+        return Path('vlc')
+    elif platform == "darwin":
+        return Path('/Applications/VLC.app/Contents/MacOS/VLC')
+    elif platform == "win32":
+        return Path('%PROGRAMFILES%\\VideoLAN\\VLC\\vlc.exe')
 
 
 def writer(client_socket, meta_data: Metadata):
@@ -73,6 +84,14 @@ def writer(client_socket, meta_data: Metadata):
 
 def reader(meta_data: Metadata):
     logging.info("Reader Started")
+    vlc_path: Path = get_vlc_path_for_current_platform()
+    if not vlc_path.exists():
+        logging.error(f"vlc was not found at {str(vlc_path)}")
+        return
+    vlc_process = subprocess.Popen(
+        [str(vlc_path), "--demux", "h264", "-"],
+        stdin=subprocess.PIPE,
+    )
     frame_no = 1
     while not path.exists(f"{CACHE_PATH}{1}.h264"):
         time.sleep(FILE_WAIT_TIME)
@@ -95,8 +114,9 @@ def reader(meta_data: Metadata):
 
         with open(f"{CACHE_PATH}{frame_no}.h264", "rb") as f:
             with os.fdopen(sys.stdout.fileno(), "wb", closefd=False) as stdout:
-                stdout.write(f.read())
-                stdout.flush()
+                # stdout.write(f.read())
+                # stdout.flush()
+                vlc_process.stdin.write(f.read())
                 logging.info(f"Detected Beginning of Frame: {frame_no} at {int(time.time() * 1000)}ms")
         logging.info("Wrote {}{}.h264".format(CACHE_PATH, frame_no))
         os.remove("{}{}.h264".format(CACHE_PATH, frame_no))
@@ -120,15 +140,46 @@ def clean_up(sig, frame):
 
 usage = "usage: python " + sys.argv[0] + " [serverIP] " + " [serverPort]"
 
+if __name__ == "__main__":
+    signal.signal(signal.SIGINT, clean_up)
 
-def main(argv: [str]):
-    server_ip, server_port = argv[1], argv[2]
+    parser = argparse.ArgumentParser(description="QUIC VideoStreamServer server")
+    parser.add_argument(
+        "app",
+        type=str,
+        nargs="?",
+        default="demo:app",
+        help="the ASGI application as <module>:<attribute>",
+    )
+    parser.add_argument(
+        "--host",
+        type=str,
+        default="::",
+        help="listen on the specified address (defaults to ::)",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=4433,
+        help="listen on the specified port (defaults to 4433)",
+    )
+    parser.add_argument(
+        "-l",
+        "--log",
+        type=str,
+        default=LOG_PATH,
+        help="file to send logging information to",
+    )
+    args = parser.parse_args()
+
+    log_path: Path = Path(args.log)
+
+    server_ip, server_port = args.host, args.port
     set_up_dirs(CACHE_PATH)
     client_socket = socket(AF_INET, SOCK_STREAM)
     client_socket.connect((server_ip, int(server_port)))
-    Path(CACHE_PATH).mkdir(
-        parents=True, exist_ok=True
-    )  # create directory if it does not exist
+
+    Path(CACHE_PATH).mkdir(parents=True, exist_ok=True)  # create directory if it does not exist
     meta_data_msg = client_socket.recv(1024)
     meta_data: Metadata = Metadata.unpack(meta_data_msg)
     logging.info(meta_data.to_dict())
@@ -140,14 +191,3 @@ def main(argv: [str]):
     writer_thread.join()
     reader_thread.join()
     logging.info("Finished")
-
-
-if __name__ == "__main__":
-    if len(sys.argv) < 3:
-        print(usage)
-        exit(1)
-    signal.signal(signal.SIGINT, clean_up)
-    LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    logging.basicConfig(filename=str(LOG_PATH), level=logging.INFO)
-    logging.info(config)
-    main(sys.argv)
