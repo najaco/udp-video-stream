@@ -116,9 +116,9 @@ def server_handler(con_socket, addr_ip_port: Tuple[str, int], path_to_frames, st
         logging.info("Retransmitter Finished")
 
     reader_thread = threading.Thread(target=reader, args=())
-    # retransmitter_thread = threading.Thread(target=retransmitter, args=(reader_thread,))
+    retransmitter_thread = threading.Thread(target=retransmitter, args=(reader_thread,))
     reader_thread.start()
-    # retransmitter_thread.start()
+    retransmitter_thread.start()
 
     con_socket.sendto(meta_data.pack(), addr)
     time.sleep(SLEEP_TIME)
@@ -132,14 +132,13 @@ def server_handler(con_socket, addr_ip_port: Tuple[str, int], path_to_frames, st
             critical_frame_acks[frame_no] = False
             frame_retr_times.insert(k=RETR_TIME, e=frame_no)
 
-        # send_frame(frame, frame_no, con_socket)
         packets: List[Packet] = create_packets(frame)
         for p in packets:
             con_socket.sendto(p.pack(), addr)
         logging.info(f"Frame {frame_no} sent at {int(time.time() * 1000)}ms")
         time.sleep(SLEEP_TIME)  # sleep
     reader_thread.join()
-    # retransmitter_thread.join()
+    retransmitter_thread.join()
     con_socket.close()
     logging.info("Handler Finished")
 
