@@ -113,11 +113,8 @@ def reader(meta_data: Metadata):
             continue
 
         with open(f"{CACHE_PATH}{frame_no}.h264", "rb") as f:
-            with os.fdopen(sys.stdout.fileno(), "wb", closefd=False) as stdout:
-                # stdout.write(f.read())
-                # stdout.flush()
-                vlc_process.stdin.write(f.read())
-                logging.info(f"Detected Beginning of Frame: {frame_no} at {int(time.time() * 1000)}ms")
+            vlc_process.stdin.write(f.read())
+            logging.info(f"Detected Beginning of Frame: {frame_no} at {int(time.time() * 1000)}ms")
         logging.info("Wrote {}{}.h264".format(CACHE_PATH, frame_no))
         os.remove("{}{}.h264".format(CACHE_PATH, frame_no))
         frame_no += 1
