@@ -42,7 +42,7 @@ def get_vlc_path_for_current_platform(platform: str = sys.platform) -> Path:
         return Path('%PROGRAMFILES%\\VideoLAN\\VLC\\vlc.exe')
 
 
-def writer(client_socket, meta_data: Metadata):
+def writer(client_socket, meta_data: Metadata, server_addr_port):
     logging.info("Writer Started")
     logging.info(
         "Receiving {} with {} frames".format(
@@ -52,6 +52,7 @@ def writer(client_socket, meta_data: Metadata):
     completed_frames = 0
     while completed_frames < meta_data.number_of_frames:
         msg_from = client_socket.recv(1024)
+        logging.info(f"Received Message: {msg_from}")
         if len(msg_from) == 0:
             break
         p: Packet = Packet.unpack(msg_from)
@@ -74,8 +75,8 @@ def writer(client_socket, meta_data: Metadata):
             frame_to_save.write(frames[p.frame_no].get_data_as_bytes())
             frame_to_save.close()
             if frames[p.frame_no].to_frame().priority >= PRIORITY_THRESHOLD:
-                client_socket.send(Ack(p.frame_no).pack())
-                logging.info("ACK {} Sent".format(p.frame_no))
+                client_socket.sendto(Ack(p.frame_no).pack(), server_addr_port)
+                logging.info(f"ACK {p.frame_no} Sent at {time.time()}ms")
             del frames[p.frame_no]  # delete frame now that it has been saved
             completed_frames += 1
     client_socket.close()
@@ -170,18 +171,24 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     log_path: Path = Path(args.log)
+    logging.basicConfig(filename=str(log_path), level=logging.INFO)
 
-    server_ip, server_port = args.host, args.port
+    server_ip, server_port = args.host, int(args.port)
     set_up_dirs(CACHE_PATH)
-    client_socket = socket(AF_INET, SOCK_STREAM)
-    client_socket.connect((server_ip, int(server_port)))
 
+    UDP = True  # TODO SWITCH TO CLA
+    logging.info(f"Creating socket for {args.host} port {args.port}")
+    client_socket = socket(AF_INET, SOCK_DGRAM if UDP else SOCK_STREAM)
+    # if not UDP:
+    #     client_socket.connect((server_ip, int(server_port)))
+    logging.info("Socket Connected!")
+    client_socket.sendto(b"Send me files!", (server_ip, server_port))
     Path(CACHE_PATH).mkdir(parents=True, exist_ok=True)  # create directory if it does not exist
     meta_data_msg = client_socket.recv(1024)
     meta_data: Metadata = Metadata.unpack(meta_data_msg)
     logging.info(meta_data.to_dict())
-    writer_thread = threading.Thread(target=writer, args=(client_socket, meta_data))
-    reader_thread = threading.Thread(target=reader, args=(meta_data,))
+    writer_thread = threading.Thread(target=writer, args=(client_socket, meta_data, (server_ip, server_port)))
+    reader_thread = threading.Thread(target=reader, args=(meta_data, ))
     writer_thread.start()
     reader_thread.start()
 

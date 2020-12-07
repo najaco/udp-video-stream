@@ -9,7 +9,7 @@ import threading
 import time
 from pathlib import Path
 from socket import *
-from typing import List
+from typing import List, Tuple
 
 from delta_list.delta_list import DeltaList
 from objs.ack import Ack
@@ -29,6 +29,26 @@ LOG_PATH: str = config["SERVER"]["LogPath"]
 SLEEP_TIME = float(config["SERVER"]["SleepTime"])
 RETR_TIME = int(config["SERVER"]["RetransmissionTime"])
 RETR_INTERVAL = float(config["SERVER"]["RetransmissionInterval"])
+
+sessions = {}
+
+
+def cl_ffmpeg(file_path: str, cache_path: str):
+    if not os.path.exists(cache_path):
+        os.mkdir(cache_path)
+    elif not os.path.isdir(cache_path):
+        raise Exception(
+            "{} must not already exist as a non directory".format(cache_path)
+        )
+    cmd = "ffmpeg -i {} -f image2 -c:v copy -bsf h264_mp4toannexb {}%d.h264".format(
+        file_path, cache_path
+    )
+    os.system(cmd)
+
+
+def clean_up(sig, frame):
+    shutil.rmtree(CACHE_PATH)
+    sys.exit(0)
 
 
 def create_packets(frame: Frame) -> List[Packet]:
@@ -50,7 +70,7 @@ def create_packets(frame: Frame) -> List[Packet]:
     return packets
 
 
-def server_handler(con_socket, ad, path_to_frames, starting_frame, total_frames):
+def server_handler(con_socket, addr_ip_port: Tuple[str, int], path_to_frames, starting_frame, total_frames):
     logging.info("Handler Started")
     frame_no = starting_frame
     meta_data = Metadata(file_name=path_to_frames, number_of_frames=total_frames)
@@ -61,7 +81,12 @@ def server_handler(con_socket, ad, path_to_frames, starting_frame, total_frames)
     def reader() -> None:
         logging.info("Reader Started")
         while True:
-            msg_from = con_socket.recv(1024)
+            if len(sessions[addr_ip_port]) <= 0:
+                time.sleep(0.2)
+                continue
+            else:
+                msg_from = sessions[addr_ip_port].pop()
+                logging.info(f"Server Handler: Message from {addr_ip_port}")
             if len(msg_from) == 0:
                 break
             a: Ack = Ack.unpack(msg_from)
@@ -84,18 +109,18 @@ def server_handler(con_socket, ad, path_to_frames, starting_frame, total_frames)
                         k=RETR_TIME, e=i
                     )  # re insert frame to delta list
                     for packet in create_packets(frames[i]):
-                        con_socket.send(packet.pack())
+                        con_socket.sendto(packet.pack(), addr)  # HERE
                 logging.info("Retransmitted frame {}".format(i))
 
             time.sleep(RETR_INTERVAL)
         logging.info("Retransmitter Finished")
 
     reader_thread = threading.Thread(target=reader, args=())
-    retransmitter_thread = threading.Thread(target=retransmitter, args=(reader_thread,))
+    # retransmitter_thread = threading.Thread(target=retransmitter, args=(reader_thread,))
     reader_thread.start()
-    retransmitter_thread.start()
+    # retransmitter_thread.start()
 
-    con_socket.send(meta_data.pack())
+    con_socket.sendto(meta_data.pack(), addr)
     time.sleep(SLEEP_TIME)
     while frame_no < total_frames:  # 1 for now, change to frames later
         frame_no += 1
@@ -110,31 +135,13 @@ def server_handler(con_socket, ad, path_to_frames, starting_frame, total_frames)
         # send_frame(frame, frame_no, con_socket)
         packets: List[Packet] = create_packets(frame)
         for p in packets:
-            con_socket.send(p.pack())
+            con_socket.sendto(p.pack(), addr)
         logging.info(f"Frame {frame_no} sent at {int(time.time() * 1000)}ms")
         time.sleep(SLEEP_TIME)  # sleep
     reader_thread.join()
-    retransmitter_thread.join()
+    # retransmitter_thread.join()
     con_socket.close()
     logging.info("Handler Finished")
-
-
-def cl_ffmpeg(file_path: str, cache_path: str):
-    if not os.path.exists(cache_path):
-        os.mkdir(cache_path)
-    elif not os.path.isdir(cache_path):
-        raise Exception(
-            "{} must not already exist as a non directory".format(cache_path)
-        )
-    cmd = "ffmpeg -i {} -f image2 -c:v copy -bsf h264_mp4toannexb {}%d.h264".format(
-        file_path, cache_path
-    )
-    os.system(cmd)
-
-
-def clean_up(sig, frame):
-    shutil.rmtree(CACHE_PATH)
-    sys.exit(0)
 
 
 usage = "usage: python " + sys.argv[0] + " [portno] [file]"
@@ -188,15 +195,29 @@ if __name__ == "__main__":
 
     cl_ffmpeg(file_path, CACHE_PATH)
 
-    server_socket = socket(AF_INET, SOCK_STREAM)
+    UDP = True  # TODO: Switch to CLA
+    logging.info(f"Creating socket on {args.host} port {args.port}")
+    server_socket = socket(AF_INET, SOCK_DGRAM if UDP else SOCK_STREAM)
     server_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
     server_socket.bind(("", int(server_port)))
-    server_socket.listen(8)
+    logging.info(f"Socket Bound")
+    if not UDP:
+        server_socket.listen(8)
+
     number_of_frames = len(os.listdir(CACHE_PATH)) - 1
+    logging.info("Running...")
+
     while True:
-        connection_socket, addr = server_socket.accept()
-        threading.Thread(
-            target=server_handler,
-            args=(connection_socket, addr, CACHE_PATH, 0, number_of_frames),
-        ).start()
+        msg, addr = server_socket.recvfrom(1024) if UDP else server_socket.accept()
+        logging.info(f"Received {msg} from {addr} at {time.time()}ms")
+
+        # If session is not already established, create one
+        if addr not in sessions:
+            sessions[addr] = []
+            threading.Thread(
+                target=server_handler,
+                args=(server_socket, addr, CACHE_PATH, 0, number_of_frames),
+            ).start()
+        else:
+            sessions[addr].append(msg)
     server_socket.close()
