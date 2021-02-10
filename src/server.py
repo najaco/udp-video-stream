@@ -24,25 +24,23 @@ MAX_DATA_SIZE = MAX_PKT_SIZE - 4 * 6
 PRIORITY_THRESHOLD: Frame.Priority = Frame.Priority(
     int(config["DEFAULT"]["PriorityThreshold"])
 )
+FPS: int = int(config["DEFAULT"]["FPS"])
 CACHE_PATH: str = config["SERVER"]["CachePath"]
 LOG_PATH: str = config["SERVER"]["LogPath"]
-SLEEP_TIME = float(config["SERVER"]["SleepTime"])
 RETR_TIME = int(config["SERVER"]["RetransmissionTime"])
 RETR_INTERVAL = float(config["SERVER"]["RetransmissionInterval"])
 
 sessions = {}
 
 
-def cl_ffmpeg(file_path: str, cache_path: str):
+def cl_ffmpeg(file_path: str, cache_path: str, fps: int):
     if not os.path.exists(cache_path):
         os.mkdir(cache_path)
     elif not os.path.isdir(cache_path):
         raise Exception(
-            "{} must not already exist as a non directory".format(cache_path)
+            f"{cache_path} must not already exist as a non directory"
         )
-    cmd = "ffmpeg -i {} -f image2 -c:v copy -bsf h264_mp4toannexb {}%d.h264".format(
-        file_path, cache_path
-    )
+    cmd = f"ffmpeg -i {file_path} -r {fps} -f image2 -c:v copy -bsf h264_mp4toannexb {cache_path}%d.h264"
     os.system(cmd)
 
 
@@ -94,25 +92,28 @@ def server_handler(con_socket, addr_ip_port: Tuple[str, int], path_to_frames, st
             # remove frame from dlist here
             if frame_retr_times.contains(a.frame_no):
                 frame_retr_times.remove(a.frame_no)
-            logging.info("ACK {}".format(a.frame_no))
+            logging.info(f"ACK {a.frame_no}")
         logging.info("Reader Finished")
 
     def retransmitter(reader_thread) -> None:
         logging.info("Retransmitter Started")
         while reader_thread.is_alive():
+            # logging.info(f"Delta list = {frame_retr_times.list_as_str()}")
             frame_retr_times.decrement_key()
             ready_frames: List[int] = frame_retr_times.remove_all_ready()
             for i in ready_frames:
-                logging.info("Retransmitting frame {}".format(i))
+                logging.info(f"Retransmitting frame {i}")
                 if i in critical_frame_acks and critical_frame_acks[i] is False:
                     frame_retr_times.insert(
                         k=RETR_TIME, e=i
                     )  # re insert frame to delta list
+                    n_packs = 0
                     for packet in create_packets(frames[i]):
                         con_socket.sendto(packet.pack(), addr)  # HERE
-                logging.info("Retransmitted frame {}".format(i))
+                        n_packs += 1
+                logging.info(f"Retransmitted frame {i} with {n_packs} packets")
 
-            time.sleep(RETR_INTERVAL)
+            time.sleep(.001)
         logging.info("Retransmitter Finished")
 
     reader_thread = threading.Thread(target=reader, args=())
@@ -121,25 +122,28 @@ def server_handler(con_socket, addr_ip_port: Tuple[str, int], path_to_frames, st
     retransmitter_thread.start()
 
     con_socket.sendto(meta_data.pack(), addr)
-    time.sleep(SLEEP_TIME)
+    logging.info(f"Priority Threshold is {int(PRIORITY_THRESHOLD)}")
     while frame_no < total_frames:  # 1 for now, change to frames later
         frame_no += 1
-        f = open("{}{}.h264".format(path_to_frames, frame_no), "rb")
-
+        f = open(f"{path_to_frames}{frame_no}.h264", "rb")
         frame = Frame(f.read(), frame_no)
         frames[frame_no] = frame
-        if frame.priority >= PRIORITY_THRESHOLD:
+        logging.info(f"Frame {frame_no} has priority {frame.priority}")
+        if frame.priority >= int(PRIORITY_THRESHOLD) or frame.priority == Frame.Priority.START:
+            logging.info(f"Inserting {frame_no} into frame_retr_times")
             critical_frame_acks[frame_no] = False
             frame_retr_times.insert(k=RETR_TIME, e=frame_no)
-
-        packets: List[Packet] = create_packets(frame)
-        for p in packets:
+        n_packets = 0
+        for p in create_packets(frame):
             con_socket.sendto(p.pack(), addr)
+            n_packets += 1
+        logging.info(f"Frame {frame_no} had {n_packets} packets")
         logging.info(f"Frame {frame_no} sent at {int(time.time() * 1000)}ms")
-        time.sleep(SLEEP_TIME)  # sleep
+        time.sleep(1 / FPS)  # sleep to simulate live streaming
     reader_thread.join()
     retransmitter_thread.join()
     con_socket.close()
+    con_socket.sendto(b"END", addr)
     logging.info("Handler Finished")
 
 
@@ -190,9 +194,12 @@ if __name__ == "__main__":
     file_path = args.file_to_send
 
     log_path.parent.mkdir(parents=True, exist_ok=True)
-    logging.basicConfig(filename=str(log_path), level=logging.INFO)
+    logging.basicConfig(filename=str(log_path),
+                        format="%(asctime)s.%(msecs)03d %(levelname)-8s %(message)s",
+                        level=logging.INFO,
+                        datefmt="%Y-%m-%d %H:%M:%S")
 
-    cl_ffmpeg(file_path, CACHE_PATH)
+    cl_ffmpeg(file_path, CACHE_PATH, FPS)
 
     UDP = True  # TODO: Switch to CLA
     logging.info(f"Creating socket on {args.host} port {args.port}")
@@ -203,7 +210,7 @@ if __name__ == "__main__":
     if not UDP:
         server_socket.listen(8)
 
-    number_of_frames = len(os.listdir(CACHE_PATH)) - 1
+    number_of_frames = len(os.listdir(CACHE_PATH))
     logging.info("Running...")
 
     while True:
@@ -217,6 +224,9 @@ if __name__ == "__main__":
                 target=server_handler,
                 args=(server_socket, addr, CACHE_PATH, 0, number_of_frames),
             ).start()
+        elif msg == b"END":
+            logging.info(f"Detected END from {addr}. Reseting session")
+            sessions.pop(addr)
         else:
             sessions[addr].append(msg)
     server_socket.close()

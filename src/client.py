@@ -11,7 +11,7 @@ import time
 from os import path
 from pathlib import Path
 from socket import *
-from typing import Dict
+from typing import Dict, Set
 
 from objs import Frame
 from objs.ack import Ack
@@ -44,16 +44,13 @@ def get_vlc_path_for_current_platform(platform: str = sys.platform) -> Path:
 
 def writer(client_socket, meta_data: Metadata, server_addr_port):
     logging.info("Writer Started")
-    logging.info(
-        "Receiving {} with {} frames".format(
-            meta_data.file_name, meta_data.number_of_frames
-        )
-    )
+    logging.info(f"Receiving {meta_data.file_name} with {meta_data.number_of_frames} frames")
     completed_frames = 0
+    already_completed_frames: Set[int] = set()
     while completed_frames < meta_data.number_of_frames:
         msg_from = client_socket.recv(1024)
-        logging.info(f"Received Message: {msg_from}")
-        if len(msg_from) == 0:
+        # logging.info(f"Received Message: {msg_from}")
+        if len(msg_from) == b"END":
             break
         p: Packet = Packet.unpack(msg_from)
         if p is None:
@@ -67,20 +64,26 @@ def writer(client_socket, meta_data: Metadata, server_addr_port):
         try:
             frames[p.frame_no].emplace(p.seq_no, p.data)
         except Exception:
-            print("Error with frame no {}".format(p.frame_no))
+            logging.error(f"Error with frame no {p.frame_no}")
         # check if frame is filled
         if frames[p.frame_no].is_complete():
             # logging.info(f"Detected Beginning of Frame: {p.frame_no} at {int(time.time() * 1000)}ms")
-            frame_to_save = open("{}{}.h264".format(CACHE_PATH, p.frame_no), "wb+")
+            frame_to_save = open(f"{CACHE_PATH}{p.frame_no}.h264", "wb+")
             frame_to_save.write(frames[p.frame_no].get_data_as_bytes())
             frame_to_save.close()
-            if frames[p.frame_no].to_frame().priority >= PRIORITY_THRESHOLD:
+            if frames[p.frame_no].to_frame().priority >= PRIORITY_THRESHOLD or frames[
+                p.frame_no].to_frame().priority == Frame.Priority.START:
                 client_socket.sendto(Ack(p.frame_no).pack(), server_addr_port)
-                logging.info(f"ACK {p.frame_no} Sent at {time.time()}ms")
+                logging.info(f"ACK {p.frame_no} Sent at {int(time.time() * 1000)}ms")
             del frames[p.frame_no]  # delete frame now that it has been saved
-            completed_frames += 1
-    client_socket.close()
+            if p.frame_no not in already_completed_frames:
+                logging.info(f"Saved {p.frame_no}")
+                # logging.info(f"Frames = {list(frames.keys())}")
+                completed_frames += 1
+            already_completed_frames.add(p.frame_no)
+
     logging.info("Writer Finished")
+    logging.info(f"Completed {completed_frames} / {meta_data.number_of_frames} frames")
 
 
 def reader(meta_data: Metadata):
@@ -93,15 +96,17 @@ def reader(meta_data: Metadata):
         [str(vlc_path), "--demux", "h264", "-"],
         stdin=subprocess.PIPE,
     )
+    logging.info("VLC started, waiting for frames")
     frame_no = 1
     while not path.exists(f"{CACHE_PATH}{1}.h264"):
         time.sleep(FILE_WAIT_TIME)
     while frame_no < meta_data.number_of_frames:
-        logging.info("Waiting for {}{}.h264 exists".format(CACHE_PATH, frame_no))
+        logging.info(f"Waiting for {CACHE_PATH}{frame_no}.h264 exists")
         time_passed = 0
-        while not path.exists("{}{}.h264".format(CACHE_PATH, frame_no)) and (
+        while not path.exists(f"{CACHE_PATH}{frame_no}.h264") and (
                 time_passed < FILE_MAX_WAIT_TIME
-                or (frame_no in frames and frames[frame_no].priority >= PRIORITY_THRESHOLD)
+        #        or (frame_no in frames and (
+        #         frames[frame_no].priority >= PRIORITY_THRESHOLD or frames[frame_no].priority == Frame.Priority.START))
         ):
             time_passed += FILE_WAIT_TIME
             time.sleep(FILE_WAIT_TIME)  # force context switch
@@ -116,8 +121,8 @@ def reader(meta_data: Metadata):
         with open(f"{CACHE_PATH}{frame_no}.h264", "rb") as f:
             vlc_process.stdin.write(f.read())
             logging.info(f"Detected Beginning of Frame: {frame_no} at {int(time.time() * 1000)}ms")
-        logging.info("Wrote {}{}.h264".format(CACHE_PATH, frame_no))
-        os.remove("{}{}.h264".format(CACHE_PATH, frame_no))
+        logging.info(f"Wrote {CACHE_PATH}{frame_no}.h264")
+        os.remove(f"{CACHE_PATH}{frame_no}.h264")
         frame_no += 1
     logging.info("Reader Finished")
 
@@ -127,20 +132,13 @@ def set_up_dirs(cache_path: str):
         os.mkdir(cache_path)
     elif not os.path.isdir(cache_path):
         raise Exception(
-            "{} must not already exist as a non directory".format(cache_path)
+            f"{cache_path} must not already exist as a non directory"
         )
-
-
-def clean_up(sig, frame):
-    shutil.rmtree(CACHE_PATH)
-    sys.exit(0)
 
 
 usage = "usage: python " + sys.argv[0] + " [serverIP] " + " [serverPort]"
 
 if __name__ == "__main__":
-    signal.signal(signal.SIGINT, clean_up)
-
     parser = argparse.ArgumentParser(description="QUIC VideoStreamServer server")
     parser.add_argument(
         "app",
@@ -171,14 +169,31 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     log_path: Path = Path(args.log)
-    logging.basicConfig(filename=str(log_path), level=logging.INFO)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    logging.basicConfig(filename=str(log_path),
+                        format="%(asctime)s.%(msecs)03d %(levelname)-8s %(message)s",
+                        level=logging.INFO,
+                        datefmt="%Y-%m-%d %H:%M:%S")
 
     server_ip, server_port = args.host, int(args.port)
     set_up_dirs(CACHE_PATH)
 
+
+
+
     UDP = True  # TODO SWITCH TO CLA
     logging.info(f"Creating socket for {args.host} port {args.port}")
     client_socket = socket(AF_INET, SOCK_DGRAM if UDP else SOCK_STREAM)
+
+    def clean_up(sig, frame):
+        shutil.rmtree(CACHE_PATH)
+        client_socket.sendto(b"END", (server_ip, server_port))
+        client_socket.close()
+        sys.exit(0)
+
+
+    signal.signal(signal.SIGINT, clean_up)
     # if not UDP:
     #     client_socket.connect((server_ip, int(server_port)))
     logging.info("Socket Connected!")
@@ -186,12 +201,17 @@ if __name__ == "__main__":
     Path(CACHE_PATH).mkdir(parents=True, exist_ok=True)  # create directory if it does not exist
     meta_data_msg = client_socket.recv(1024)
     meta_data: Metadata = Metadata.unpack(meta_data_msg)
-    logging.info(meta_data.to_dict())
+    logging.info(f"Received metadata at {int(time.time() * 1000)}ms")
+    logging.info(f"MSG = {meta_data_msg}")
+    logging.info(f"Metadata = {meta_data.to_dict()}")
     writer_thread = threading.Thread(target=writer, args=(client_socket, meta_data, (server_ip, server_port)))
-    reader_thread = threading.Thread(target=reader, args=(meta_data, ))
+    reader_thread = threading.Thread(target=reader, args=(meta_data,))
     writer_thread.start()
     reader_thread.start()
 
     writer_thread.join()
     reader_thread.join()
+    client_socket.sendto(b"END", (server_ip, server_port))
+    client_socket.close()
+
     logging.info("Finished")

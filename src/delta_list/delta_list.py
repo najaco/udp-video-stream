@@ -141,3 +141,11 @@ class DeltaList(Generic[E]):
         while p is not None:
             print("{} : {}".format(p.key, p.data))
             p = p.next
+
+    def list_as_str(self) -> str:
+        p = self.__head
+        s = f"Size = {self.size}\t"
+        while p is not None:
+            s += f"[{p.key}: {p.data}]\t"
+            p = p.next
+        return s
